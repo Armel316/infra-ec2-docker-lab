@@ -58,6 +58,10 @@ jobs:
             exit 1
           fi
 
+      - name: Debug Private Key (SAFE)
+        run: |
+          head -n 2 private_key.pem
+
       # =====================================
       # 4️⃣ Attendre que SSH soit prêt
       # =====================================
