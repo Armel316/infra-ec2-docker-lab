@@ -60,10 +60,12 @@ jobs:
       # =====================================
       # 6️⃣ Wait for SSH
       # =====================================
-      - name: Debug Port 22
+      - name: Debug SSH
         run: |
-          echo "Testing port 22..."
-          nc -zv $PUBLIC_IP 22 || true
+          echo "Testing SSH verbose..."
+          ssh -vvv -i private_key.pem \
+              -o StrictHostKeyChecking=no \
+              ubuntu@$PUBLIC_IP || true
           
       - name: Wait for SSH
         run: |
