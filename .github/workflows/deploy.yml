@@ -19,17 +19,19 @@ jobs:
         uses: actions/checkout@v3
 
       # =====================================
-      # 2️⃣ Setup Terraform
+      # 2️⃣ Setup Terraform (WRAPPER OFF 🔥)
       # =====================================
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_wrapper: false
 
       - name: Terraform Init
         working-directory: ./terraform
         run: terraform init -reconfigure
 
       # =====================================
-      # 🔥 3️⃣ Destroy (important pour SSH key)
+      # 3️⃣ Destroy propre
       # =====================================
       - name: Terraform Destroy (clean previous infra)
         working-directory: ./terraform
@@ -43,12 +45,12 @@ jobs:
         run: terraform apply -auto-approve
 
       # =====================================
-      # 5️⃣ Outputs
+      # 5️⃣ Outputs propres (plus de tr -d)
       # =====================================
       - name: Get Public IP
         working-directory: ./terraform
         run: |
-          PUBLIC_IP=$(terraform output -raw public_ip | tr -d '\n')
+          PUBLIC_IP=$(terraform output -raw public_ip)
           echo "PUBLIC_IP=$PUBLIC_IP" >> $GITHUB_ENV
 
       - name: Get Private Key
@@ -58,15 +60,19 @@ jobs:
           chmod 600 ../private_key.pem
 
       # =====================================
-      # 6️⃣ Wait for SSH
+      # 6️⃣ Debug SSH (temporaire)
       # =====================================
       - name: Debug SSH
         run: |
           echo "Testing SSH verbose..."
           ssh -vvv -i private_key.pem \
               -o StrictHostKeyChecking=no \
+              -o ConnectTimeout=10 \
               ubuntu@$PUBLIC_IP || true
-          
+
+      # =====================================
+      # 7️⃣ Wait for SSH
+      # =====================================
       - name: Wait for SSH
         run: |
           echo "Waiting for SSH..."
@@ -84,13 +90,13 @@ jobs:
           exit 1
 
       # =====================================
-      # 7️⃣ Install Ansible
+      # 8️⃣ Install Ansible
       # =====================================
       - name: Install Ansible
         run: sudo apt update && sudo apt install ansible -y
 
       # =====================================
-      # 8️⃣ Inventory
+      # 9️⃣ Inventory
       # =====================================
       - name: Create Ansible inventory
         run: |
@@ -106,7 +112,7 @@ jobs:
           EOF
 
       # =====================================
-      # 9️⃣ Run Playbook
+      # 🔟 Run Playbook
       # =====================================
       - name: Run Ansible Playbook
         run: ansible-playbook -i inventory.yml ansible/playbook.yml
