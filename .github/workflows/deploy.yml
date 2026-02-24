@@ -48,6 +48,9 @@ jobs:
         run: |
           terraform output -raw private_key_pem > ../private_key.pem
           chmod 600 ../private_key.pem
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       # =====================================
       # 4️⃣ Attendre que SSH soit prêt
