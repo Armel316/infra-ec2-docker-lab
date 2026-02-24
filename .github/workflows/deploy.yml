@@ -1,0 +1,85 @@
+name: Deploy Infrastructure
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # =====================================
+      # 1️⃣ Checkout du repository
+      # =====================================
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # =====================================
+      # 2️⃣ Setup Terraform
+      # =====================================
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Terraform Init
+        working-directory: ./terraform
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: ./terraform
+        run: terraform apply -auto-approve
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      # =====================================
+      # 3️⃣ Récupérer outputs Terraform
+      # =====================================
+      - name: Get Public IP
+        working-directory: ./terraform
+        run: |
+          echo "PUBLIC_IP=$(terraform output -raw public_ip)" >> $GITHUB_ENV
+
+      - name: Get Private Key
+        working-directory: ./terraform
+        run: |
+          terraform output -raw private_key_pem > ../private_key.pem
+          chmod 600 ../private_key.pem
+
+      # =====================================
+      # 4️⃣ Attendre que SSH soit prêt
+      # =====================================
+      - name: Wait for SSH
+        run: |
+          echo "Waiting for SSH to be available..."
+          until nc -z $PUBLIC_IP 22; do
+            sleep 5
+          done
+          echo "SSH is ready!"
+
+      # =====================================
+      # 5️⃣ Installer Ansible
+      # =====================================
+      - name: Install Ansible
+        run: sudo apt update && sudo apt install ansible -y
+
+      # =====================================
+      # 6️⃣ Créer inventory.yml dynamique
+      # =====================================
+      - name: Create Ansible inventory
+        run: |
+          cat <<EOF > inventory.yml
+          all:
+            children:
+              web:
+                hosts:
+                  react_server:
+                    ansible_host: ${PUBLIC_IP}
+                    ansible_user: ubuntu
+                    ansible_ssh_private_key_file: private_key.pem
+          EOF
+
+      # =====================================
+      # 7️⃣ Lancer le playbook
+      # =====================================
+      - name: Run Ansible Playbook
+        run: ansible-playbook -i inventory.yml ansible/playbook.yml
