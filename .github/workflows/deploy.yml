@@ -7,14 +7,13 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    # 🔥 AWS credentials disponibles pour TOUTES les steps
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
     steps:
       # =====================================
-      # 1️⃣ Checkout du repository
+      # 1️⃣ Checkout
       # =====================================
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -29,12 +28,22 @@ jobs:
         working-directory: ./terraform
         run: terraform init -reconfigure
 
+      # =====================================
+      # 🔥 3️⃣ Destroy (important pour SSH key)
+      # =====================================
+      - name: Terraform Destroy (clean previous infra)
+        working-directory: ./terraform
+        run: terraform destroy -auto-approve || true
+
+      # =====================================
+      # 4️⃣ Apply
+      # =====================================
       - name: Terraform Apply
         working-directory: ./terraform
         run: terraform apply -auto-approve
 
       # =====================================
-      # 3️⃣ Récupérer outputs Terraform
+      # 5️⃣ Outputs
       # =====================================
       - name: Get Public IP
         working-directory: ./terraform
@@ -48,22 +57,8 @@ jobs:
           terraform output -raw private_key_pem > ../private_key.pem
           chmod 600 ../private_key.pem
 
-      - name: Verify Private Key File
-        run: |
-          if [ -f private_key.pem ]; then
-            echo "Private key file exists ✅"
-            ls -l private_key.pem
-          else
-            echo "Private key file NOT found ❌"
-            exit 1
-          fi
-
-      - name: Debug Private Key (SAFE)
-        run: |
-          head -n 2 private_key.pem
-
       # =====================================
-      # 4️⃣ Attendre que SSH soit prêt
+      # 6️⃣ Wait for SSH
       # =====================================
       - name: Wait for SSH
         run: |
@@ -82,13 +77,13 @@ jobs:
           exit 1
 
       # =====================================
-      # 5️⃣ Installer Ansible
+      # 7️⃣ Install Ansible
       # =====================================
       - name: Install Ansible
         run: sudo apt update && sudo apt install ansible -y
 
       # =====================================
-      # 6️⃣ Créer inventory.yml dynamique
+      # 8️⃣ Inventory
       # =====================================
       - name: Create Ansible inventory
         run: |
@@ -104,7 +99,7 @@ jobs:
           EOF
 
       # =====================================
-      # 7️⃣ Lancer le playbook
+      # 9️⃣ Run Playbook
       # =====================================
       - name: Run Ansible Playbook
         run: ansible-playbook -i inventory.yml ansible/playbook.yml
