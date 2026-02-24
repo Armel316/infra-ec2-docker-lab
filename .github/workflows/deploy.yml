@@ -48,6 +48,16 @@ jobs:
           terraform output -raw private_key_pem > ../private_key.pem
           chmod 600 ../private_key.pem
 
+      - name: Verify Private Key File
+        run: |
+          if [ -f private_key.pem ]; then
+            echo "Private key file exists ✅"
+            ls -l private_key.pem
+          else
+            echo "Private key file NOT found ❌"
+            exit 1
+          fi
+
       # =====================================
       # 4️⃣ Attendre que SSH soit prêt
       # =====================================
