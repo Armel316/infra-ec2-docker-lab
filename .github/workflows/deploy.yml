@@ -7,6 +7,11 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
+    # 🔥 AWS credentials disponibles pour TOUTES les steps
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
     steps:
       # =====================================
       # 1️⃣ Checkout du repository
@@ -23,16 +28,10 @@ jobs:
       - name: Terraform Init
         working-directory: ./terraform
         run: terraform init -reconfigure
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Terraform Apply
         working-directory: ./terraform
         run: terraform apply -auto-approve
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       # =====================================
       # 3️⃣ Récupérer outputs Terraform
@@ -48,9 +47,6 @@ jobs:
         run: |
           terraform output -raw private_key_pem > ../private_key.pem
           chmod 600 ../private_key.pem
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       # =====================================
       # 4️⃣ Attendre que SSH soit prêt
@@ -59,7 +55,10 @@ jobs:
         run: |
           echo "Waiting for SSH..."
           for i in {1..30}; do
-            if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 ubuntu@$PUBLIC_IP "echo ok" 2>/dev/null; then
+            if ssh -i private_key.pem \
+               -o StrictHostKeyChecking=no \
+               -o ConnectTimeout=5 \
+               ubuntu@$PUBLIC_IP "echo ok" 2>/dev/null; then
               echo "SSH is ready!"
               exit 0
             fi
