@@ -9,10 +9,11 @@
 
     - name: Install Docker
       apt:
-        name: 
-          - docker.
-          - docker-compose
+        name: "{{ item }}"
         state: present
+      loop:
+        - docker.io
+        - docker-compose
 
     - name: Start and enable Docker
       systemd:
