@@ -3,7 +3,7 @@ provider "aws" {
 }
 
 # =========================
-# Récupère Ubuntu 24.04 officielle
+# Ubuntu 24.04 officielle
 # =========================
 data "aws_ami" "ubuntu" {
   most_recent = true
@@ -28,17 +28,11 @@ data "aws_vpc" "default" {
 }
 
 # =========================
-# Génère une clé SSH locale
+# Clé SSH (publique locale)
 # =========================
-resource "tls_private_key" "ssh_key" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
-
-# Enregistre la clé publique dans AWS
 resource "aws_key_pair" "deployer" {
   key_name   = "terraform-react-lab-key"
-  public_key = tls_private_key.ssh_key.public_key_openssh
+  public_key = file("${path.module}/keys/id_ed25519.pub")
 }
 
 # =========================
@@ -71,6 +65,10 @@ resource "aws_security_group" "react_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
+  tags = {
+    Name = "react-lab-sg"
+  }
 }
 
 # =========================
@@ -78,7 +76,7 @@ resource "aws_security_group" "react_sg" {
 # =========================
 resource "aws_instance" "react_lab" {
   ami                         = data.aws_ami.ubuntu.id
-  instance_type               = "t2.micro" # Free tier
+  instance_type               = var.instance_type
   key_name                    = aws_key_pair.deployer.key_name
   vpc_security_group_ids      = [aws_security_group.react_sg.id]
   associate_public_ip_address = true

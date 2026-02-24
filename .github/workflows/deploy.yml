@@ -12,6 +12,7 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
     steps:
+
       # =====================================
       # 1️⃣ Checkout
       # =====================================
@@ -30,16 +31,22 @@ jobs:
         working-directory: ./terraform
         run: terraform init -reconfigure
 
+      # =====================================
+      # 🔥 LAB ONLY – Clean infra
+      # =====================================
       - name: Terraform Destroy (clean previous infra)
         working-directory: ./terraform
         run: terraform destroy -auto-approve || true
 
+      # =====================================
+      # 3️⃣ Apply Infrastructure
+      # =====================================
       - name: Terraform Apply
         working-directory: ./terraform
         run: terraform apply -auto-approve
 
       # =====================================
-      # 3️⃣ Get Public IP
+      # 4️⃣ Get Public IP
       # =====================================
       - name: Get Public IP
         working-directory: ./terraform
@@ -48,7 +55,7 @@ jobs:
           echo "PUBLIC_IP=$PUBLIC_IP" >> $GITHUB_ENV
 
       # =====================================
-      # 4️⃣ Setup SSH Key from Secret 🔥
+      # 5️⃣ Inject SSH Private Key
       # =====================================
       - name: Setup SSH key
         run: |
@@ -56,12 +63,12 @@ jobs:
           chmod 600 private_key.pem
 
       # =====================================
-      # 5️⃣ Wait for SSH
+      # 6️⃣ Wait for SSH
       # =====================================
       - name: Wait for SSH
         run: |
           echo "Waiting for SSH..."
-          for i in {1..30}; do
+          for i in {1..40}; do
             if ssh -i private_key.pem \
                -o StrictHostKeyChecking=no \
                -o ConnectTimeout=5 \
@@ -75,13 +82,15 @@ jobs:
           exit 1
 
       # =====================================
-      # 6️⃣ Install Ansible
+      # 7️⃣ Install Ansible
       # =====================================
       - name: Install Ansible
-        run: sudo apt update && sudo apt install ansible -y
+        run: |
+          sudo apt update
+          sudo apt install -y ansible
 
       # =====================================
-      # 7️⃣ Inventory
+      # 8️⃣ Create Ansible inventory
       # =====================================
       - name: Create Ansible inventory
         run: |
@@ -97,7 +106,7 @@ jobs:
           EOF
 
       # =====================================
-      # 8️⃣ Run Playbook
+      # 9️⃣ Run Playbook
       # =====================================
       - name: Run Ansible Playbook
         run: ansible-playbook -i inventory.yml ansible/playbook.yml
