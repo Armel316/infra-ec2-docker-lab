@@ -60,6 +60,11 @@ jobs:
       # =====================================
       # 6️⃣ Wait for SSH
       # =====================================
+      - name: Debug Port 22
+        run: |
+          echo "Testing port 22..."
+          nc -zv $PUBLIC_IP 22 || true
+          
       - name: Wait for SSH
         run: |
           echo "Waiting for SSH..."
