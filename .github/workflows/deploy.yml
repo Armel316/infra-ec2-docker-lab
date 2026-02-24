@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v3
 
       # =====================================
-      # 2️⃣ Setup Terraform (WRAPPER OFF 🔥)
+      # 2️⃣ Setup Terraform
       # =====================================
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
@@ -30,22 +30,16 @@ jobs:
         working-directory: ./terraform
         run: terraform init -reconfigure
 
-      # =====================================
-      # 3️⃣ Destroy propre
-      # =====================================
       - name: Terraform Destroy (clean previous infra)
         working-directory: ./terraform
         run: terraform destroy -auto-approve || true
 
-      # =====================================
-      # 4️⃣ Apply
-      # =====================================
       - name: Terraform Apply
         working-directory: ./terraform
         run: terraform apply -auto-approve
 
       # =====================================
-      # 5️⃣ Outputs propres (plus de tr -d)
+      # 3️⃣ Get Public IP
       # =====================================
       - name: Get Public IP
         working-directory: ./terraform
@@ -53,25 +47,16 @@ jobs:
           PUBLIC_IP=$(terraform output -raw public_ip)
           echo "PUBLIC_IP=$PUBLIC_IP" >> $GITHUB_ENV
 
-      - name: Get Private Key
-        working-directory: ./terraform
+      # =====================================
+      # 4️⃣ Setup SSH Key from Secret 🔥
+      # =====================================
+      - name: Setup SSH key
         run: |
-          terraform output -raw private_key_pem > ../private_key.pem
-          chmod 600 ../private_key.pem
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
+          chmod 600 private_key.pem
 
       # =====================================
-      # 6️⃣ Debug SSH (temporaire)
-      # =====================================
-      - name: Debug SSH
-        run: |
-          echo "Testing SSH verbose..."
-          ssh -vvv -i private_key.pem \
-              -o StrictHostKeyChecking=no \
-              -o ConnectTimeout=10 \
-              ubuntu@$PUBLIC_IP || true
-
-      # =====================================
-      # 7️⃣ Wait for SSH
+      # 5️⃣ Wait for SSH
       # =====================================
       - name: Wait for SSH
         run: |
@@ -90,13 +75,13 @@ jobs:
           exit 1
 
       # =====================================
-      # 8️⃣ Install Ansible
+      # 6️⃣ Install Ansible
       # =====================================
       - name: Install Ansible
         run: sudo apt update && sudo apt install ansible -y
 
       # =====================================
-      # 9️⃣ Inventory
+      # 7️⃣ Inventory
       # =====================================
       - name: Create Ansible inventory
         run: |
@@ -112,7 +97,7 @@ jobs:
           EOF
 
       # =====================================
-      # 🔟 Run Playbook
+      # 8️⃣ Run Playbook
       # =====================================
       - name: Run Ansible Playbook
         run: ansible-playbook -i inventory.yml ansible/playbook.yml
