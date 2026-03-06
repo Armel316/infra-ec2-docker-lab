@@ -27,6 +27,13 @@ data "aws_vpc" "default" {
   default = true
 }
 
+data "aws_subnets" "default" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
+}
+
 # =========================
 # Clé SSH (publique locale)
 # =========================
@@ -40,7 +47,7 @@ resource "aws_key_pair" "deployer" {
 # =========================
 resource "aws_security_group" "react_sg" {
   name        = "react-lab-sg"
-  description = "Allow SSH and HTTP"
+  description = "Allow traffic from ALB"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
@@ -48,15 +55,15 @@ resource "aws_security_group" "react_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # LAB ONLY
+    cidr_blocks = ["0.0.0.0/0"] # lab only
   }
 
   ingress {
-    description = "HTTP"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # LAB ONLY
+    description     = "App from ALB"
+    from_port       = 8080
+    to_port         = 8080
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb_sg.id]
   }
 
   egress {
@@ -74,7 +81,7 @@ resource "aws_security_group" "react_sg" {
 # =========================
 # EC2 Instance
 # =========================
-resource "aws_instance" "react_lab" {
+resource "aws_instance" "react_ec2" {
   ami                         = data.aws_ami.ubuntu.id
   instance_type               = var.instance_type
   key_name                    = aws_key_pair.deployer.key_name
